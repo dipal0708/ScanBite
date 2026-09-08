@@ -1,8 +1,9 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Use your machine's LAN IP when testing on a physical device.
-export const API_URL = "http://localhost:4000";
+// Set EXPO_PUBLIC_API_URL in .env to your machine's LAN IP when testing on a
+// physical device — "localhost" on a phone means the phone itself.
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export const apiClient = axios.create({ baseURL: API_URL });
 

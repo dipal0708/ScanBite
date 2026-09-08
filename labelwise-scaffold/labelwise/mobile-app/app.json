@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "LabelWise",
+    "slug": "labelwise",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "labelwise",
+    "splash": {
+      "backgroundColor": "#F6F5EF",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.labelwise.app"
+    },
+    "android": {
+      "package": "com.labelwise.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#F6F5EF"
+      }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "LabelWise uses the camera to scan food labels."
+        }
+      ]
+    ]
+  }
+}
