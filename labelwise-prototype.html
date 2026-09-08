@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LabelWise — Prototype</title>
+<style>
+  :root{
+    --paper:#F6F5EF;
+    --ink:#17231C;
+    --brand:#2F6B4F;
+    --brand-dark:#1F4A36;
+    --danger:#B3432B;
+    --warning:#C98A2C;
+    --good:#6FA85C;
+    --border:#D9D4C4;
+    --surface:#FFFFFF;
+    --muted:#6B7268;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; height:100%;
+    background:#EDEAE0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .stage{
+    display:flex; gap:40px; align-items:flex-start; padding:40px 20px;
+  }
+  .phone{
+    width:380px; height:780px;
+    background:var(--paper);
+    border-radius:40px;
+    border:10px solid #0f1712;
+    box-shadow:0 30px 60px rgba(15,23,18,0.35);
+    overflow:hidden;
+    position:relative;
+    display:flex; flex-direction:column;
+  }
+  .notch{
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    width:120px; height:22px; background:#0f1712; border-radius:14px; z-index:20;
+  }
+  .screen{
+    flex:1; display:none; flex-direction:column; overflow:hidden;
+    padding-top:44px;
+  }
+  .screen.active{ display:flex; }
+  .scroll{ flex:1; overflow-y:auto; padding:0 22px 22px; }
+  .scroll::-webkit-scrollbar{ display:none; }
+
+  /* ---- shared type ---- */
+  h1.hd{ font-size:26px; font-weight:800; letter-spacing:-0.02em; margin:4px 0 4px; }
+  p.sub{ color:var(--muted); font-size:14px; line-height:1.5; margin:0 0 20px; }
+  .eyebrow{ font-size:12px; color:var(--brand); font-weight:700; margin-bottom:4px; }
+
+  /* ---- progress dots ---- */
+  .progress{ display:flex; gap:6px; padding:0 22px; margin-bottom:18px; }
+  .dot{ height:4px; flex:1; background:var(--border); border-radius:2px; overflow:hidden; }
+  .dot i{ display:block; height:100%; width:0%; background:var(--brand); transition:width .5s ease; }
+  .dot.done i{ width:100%; }
+  .dot.active i{ width:100%; transition:width 1.2s ease; }
+
+  /* ---- option cards ---- */
+  .opt{
+    border:1.5px solid var(--border); border-radius:14px; padding:16px;
+    margin-bottom:10px; background:var(--surface); cursor:pointer;
+    display:flex; align-items:center; gap:12px;
+    transition:border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .opt:active{ transform:scale(0.98); }
+  .opt.sel{ border-color:var(--brand); background:#EAF3EC; }
+  .opt .icon{
+    width:38px; height:38px; border-radius:10px; background:#EFEBDD;
+    display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;
+  }
+  .opt.sel .icon{ background:var(--brand); }
+  .opt-title{ font-weight:700; font-size:15px; }
+  .opt-desc{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+
+  .chip{
+    display:inline-flex; align-items:center; border:1.5px solid var(--border);
+    border-radius:999px; padding:8px 14px; margin:0 8px 8px 0; font-size:13.5px;
+    background:var(--surface); cursor:pointer; transition:.15s ease;
+  }
+  .chip.sel{ background:var(--brand); border-color:var(--brand); color:#fff; font-weight:600; }
+  .chipwrap{ display:flex; flex-wrap:wrap; margin-bottom:8px; }
+
+  .btn{
+    background:var(--brand); color:#fff; border:none; border-radius:14px;
+    padding:16px; font-size:15.5px; font-weight:700; width:100%; cursor:pointer;
+    transition:transform .1s ease, background .15s ease;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn:disabled{ background:#B9C6BC; cursor:not-allowed; }
+  .btn.ghost{ background:transparent; color:var(--brand); }
+
+  .footer-btn{ padding:16px 22px 26px; }
+
+  /* ---- SCAN screen ---- */
+  .scanwrap{ flex:1; background:#0F1712; position:relative; display:flex; align-items:center; justify-content:center; }
+  .viewfinder{
+    width:78%; height:220px; border:3px solid var(--good); border-radius:16px; position:relative;
+    box-shadow:0 0 0 2000px rgba(0,0,0,0.55);
+  }
+  .scanline{
+    position:absolute; left:0; right:0; height:3px; top:0;
+    background:linear-gradient(90deg, transparent, #C8F26A, transparent);
+    animation: sweep 1.8s ease-in-out infinite;
+  }
+  @keyframes sweep{ 0%{ top:4%; } 50%{ top:92%; } 100%{ top:4%; } }
+  .hint{ position:absolute; bottom:34%; color:#fff; font-size:13px; text-align:center; width:100%; opacity:.85; }
+  .shutterbar{ position:absolute; bottom:26px; left:0; right:0; display:flex; justify-content:center; }
+  .shutter{
+    width:70px; height:70px; border-radius:50%; background:#fff; border:5px solid var(--brand);
+    cursor:pointer;
+  }
+  .agentline{
+    position:absolute; top:56px; left:20px; right:20px; color:#EFEFE4; font-size:13px;
+    background:rgba(15,23,18,0.7); padding:10px 14px; border-radius:12px;
+    border-left:3px solid var(--good); opacity:0; transition:opacity .3s ease;
+  }
+  .agentline.show{ opacity:1; }
+
+  /* ---- RESULT screen ---- */
+  .scorecard{
+    border:3px solid var(--good); border-radius:18px; background:var(--surface);
+    padding:22px; text-align:center; margin:16px 0 18px;
+  }
+  .scorecard .lbl{ font-size:12px; color:var(--muted); font-weight:700; }
+  .scorecard .num{ font-size:56px; font-weight:800; line-height:1; margin:4px 0; color:var(--good); }
+  .scorecard .tag{ font-size:13px; color:var(--muted); }
+  .rule{ border:none; border-top:2px solid var(--ink); margin:14px 0; }
+  .rule.thin{ border-top:1px solid var(--border); margin:10px 0; }
+  .flag{
+    border-left:3px solid var(--danger); padding:8px 0 8px 12px; margin-bottom:10px;
+    cursor:pointer;
+  }
+  .flag .fname{ font-weight:700; font-size:14px; }
+  .flag .freason{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .agentcard{
+    background:#EAF3EC; border-radius:14px; padding:16px; margin:14px 0; font-size:13.5px; line-height:1.55;
+  }
+  .agentcard b{ color:var(--brand-dark); }
+  .xp-toast{
+    position:absolute; top:50px; left:50%; transform:translateX(-50%) translateY(-10px);
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:999px; font-size:13px;
+    font-weight:700; opacity:0; transition:all .4s ease; z-index:30; white-space:nowrap;
+  }
+  .xp-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ---- PROFILE / progress screen ---- */
+  .streak{ display:flex; align-items:center; gap:14px; background:var(--surface); border:1.5px solid var(--border); border-radius:14px; padding:16px; margin-bottom:16px; }
+  .streak .flame{ font-size:28px; }
+  .xpbar{ height:10px; background:var(--border); border-radius:6px; overflow:hidden; margin-top:8px; }
+  .xpbar i{ display:block; height:100%; background:var(--brand); width:0%; transition:width 1s ease; }
+  .badgegrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px; }
+  .badge{ background:var(--surface); border:1.5px solid var(--border); border-radius:12px; padding:12px 6px; text-align:center; }
+  .badge.locked{ opacity:.35; }
+  .badge .bicon{ font-size:22px; }
+  .badge .bname{ font-size:10.5px; margin-top:4px; font-weight:700; }
+
+  /* ---- bottom nav ---- */
+  .tabbar{
+    display:flex; border-top:1px solid var(--border); background:var(--surface);
+  }
+  .tab{ flex:1; text-align:center; padding:10px 0 14px; cursor:pointer; color:var(--muted); font-size:11px; font-weight:600; }
+  .tab .ti{ font-size:19px; display:block; margin-bottom:2px; }
+  .tab.active{ color:var(--brand); }
+
+  /* ---- side notes for the person reviewing ---- */
+  .notes{ width:290px; color:#3a3f3a; padding-top:10px; }
+  .notes h2{ font-size:16px; margin:0 0 6px; }
+  .notes p{ font-size:13.5px; line-height:1.6; color:#565b56; margin:0 0 14px; }
+  .notes .stepper{ display:flex; flex-direction:column; gap:8px; margin-top:18px; }
+  .notes button.navbtn{
+    text-align:left; border:1px solid #D9D4C4; background:#fff; border-radius:10px;
+    padding:10px 12px; font-size:13px; cursor:pointer; color:#3a3f3a;
+  }
+  .notes button.navbtn.on{ border-color:var(--brand); background:#EAF3EC; font-weight:700; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <!-- SCREEN 1: Diet -->
+    <div class="screen active" id="s-diet">
+      <div class="progress">
+        <div class="dot active"><i></i></div>
+        <div class="dot"><i></i></div>
+        <div class="dot"><i></i></div>
+      </div>
+      <div class="scroll">
+        <div class="eyebrow">Step 1 of 3</div>
+        <h1 class="hd">What's your diet?</h1>
+        <p class="sub">This shapes every flag and suggestion you'll see. You can change it later.</p>
+
+        <div class="opt" data-diet="vegan"><div class="icon">🌱</div><div><div class="opt-title">Vegan</div><div class="opt-desc">No animal-derived ingredients</div></div></div>
+        <div class="opt" data-diet="vegan_no_roots"><div class="icon">🚫</div><div><div class="opt-title">Vegan — no roots</div><div class="opt-desc">Also excludes onion, garlic, ginger &amp; other roots</div></div></div>
+        <div class="opt" data-diet="vegetarian"><div class="icon">🥗</div><div><div class="opt-title">Vegetarian</div><div class="opt-desc">Dairy &amp; honey OK, no meat or eggs</div></div></div>
+        <div class="opt" data-diet="vegetarian_eggs"><div class="icon">🥚</div><div><div class="opt-title">Vegetarian + eggs</div><div class="opt-desc">Same as above, eggs allowed</div></div></div>
+        <div class="opt" data-diet="non_veg"><div class="icon">🍗</div><div><div class="opt-title">Non-vegetarian</div><div class="opt-desc">Choose exactly which meats next</div></div></div>
+      </div>
+      <div class="footer-btn"><button class="btn" id="diet-next" disabled>Continue</button></div>
+    </div>
+
+    <!-- SCREEN 2: meat subprefs (conditional) / health -->
+    <div class="screen" id="s-health">
+      <div class="progress">
+        <div class="dot done"><i></i></div>
+        <div class="dot active"><i></i></div>
+        <div class="dot"><i></i></div>
+      </div>
+      <div class="scroll">
+        <div id="meat-block" style="display:none;">
+          <div class="eyebrow">Step 2 of 3</div>
+          <h1 class="hd">Which meats do you eat?</h1>
+          <p class="sub">We'll only flag the ones you don't.</p>
+          <div class="chipwrap" id="meat-chips">
+            <div class="chip" data-meat="white">White meat</div>
+            <div class="chip" data-meat="chicken">Chicken</div>
+            <div class="chip" data-meat="red">Red meat</div>
+            <div class="chip" data-meat="pork">Pork</div>
+            <div class="chip" data-meat="seafood">Seafood</div>
+          </div>
+          <div class="rule"></div>
+        </div>
+
+        <div class="eyebrow">Step 2 of 3</div>
+        <h1 class="hd">Anything to watch for?</h1>
+        <p class="sub">Suggestions get sharper the more you tell us.</p>
+        <div class="chipwrap" id="health-chips">
+          <div class="chip" data-h="sugar">Blood sugar</div>
+          <div class="chip" data-h="bp">Blood pressure</div>
+          <div class="chip" data-h="cholesterol">Cholesterol</div>
+          <div class="chip" data-h="pregnancy">Pregnancy</div>
+          <div class="chip" data-h="weight">Weight goal</div>
+        </div>
+        <h1 class="hd" style="font-size:18px;margin-top:22px;">Allergens</h1>
+        <div class="chipwrap" id="allergen-chips">
+          <div class="chip" data-a="nuts">Nuts</div>
+          <div class="chip" data-a="gluten">Gluten</div>
+          <div class="chip" data-a="dairy">Dairy</div>
+          <div class="chip" data-a="soy">Soy</div>
+          <div class="chip" data-a="shellfish">Shellfish</div>
+        </div>
+      </div>
+      <div class="footer-btn"><button class="btn" id="health-next">Continue</button></div>
+    </div>
+
+    <!-- SCREEN 3: ready -->
+    <div class="screen" id="s-ready">
+      <div class="progress">
+        <div class="dot done"><i></i></div>
+        <div class="dot done"><i></i></div>
+        <div class="dot active"><i></i></div>
+      </div>
+      <div class="scroll" style="display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;height:100%;">
+        <div style="font-size:52px;margin-bottom:10px;">🔍</div>
+        <h1 class="hd">You're set up</h1>
+        <p class="sub">Point your camera at any ingredients or nutrition panel — we'll read it for you.</p>
+      </div>
+      <div class="footer-btn"><button class="btn" id="ready-next">Start scanning</button></div>
+    </div>
+
+    <!-- SCREEN 4: scan -->
+    <div class="screen" id="s-scan">
+      <div class="scanwrap">
+        <div class="agentline" id="agentline">Reading the label…</div>
+        <div class="viewfinder"><div class="scanline"></div></div>
+        <div class="hint">Fit the ingredients panel in the box</div>
+        <div class="shutterbar"><div class="shutter" id="shutter"></div></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab active"><span class="ti">◎</span>Scan</div>
+        <div class="tab" data-goto="s-profile"><span class="ti">☰</span>History</div>
+        <div class="tab" data-goto="s-profile"><span class="ti">☺</span>Profile</div>
+      </div>
+    </div>
+
+    <!-- SCREEN 5: result -->
+    <div class="screen" id="s-result">
+      <div class="xp-toast" id="xp-toast">+10 XP · Sugar Detective progress</div>
+      <div class="scroll" style="padding-top:14px;">
+        <div class="eyebrow">Oat &amp; Honey Granola Bar</div>
+        <div class="scorecard">
+          <div class="lbl">Label Score</div>
+          <div class="num" id="score-num">0</div>
+          <div class="tag" id="score-tag">Calculating…</div>
+        </div>
+
+        <div class="agentcard">
+          <b>Here's the read:</b> 14 ingredients found. Added sugar is the main thing to know about — it's about a third of your daily guidance in one bar. Everything else fits your vegetarian profile fine.
+        </div>
+
+        <hr class="rule" />
+        <h1 class="hd" style="font-size:17px;">Flagged for you</h1>
+        <div class="flag"><div class="fname">Honey</div><div class="freason">Added sugar — counts toward your daily sugar goal</div></div>
+        <div class="flag"><div class="fname">Palm oil</div><div class="freason">High in saturated fat relative to serving size</div></div>
+
+        <hr class="rule thin" />
+        <h1 class="hd" style="font-size:17px;">Try instead</h1>
+        <p class="sub" style="margin-bottom:8px;">Look for a granola bar with fiber listed above sugar on the label, or one sweetened with fruit rather than honey/syrup.</p>
+      </div>
+      <div class="footer-btn"><button class="btn" id="result-next">Scan another</button></div>
+    </div>
+
+    <!-- SCREEN 6: profile / progress -->
+    <div class="screen" id="s-profile">
+      <div class="scroll" style="padding-top:20px;">
+        <h1 class="hd">Your progress</h1>
+        <p class="sub">Every scan builds your label literacy.</p>
+
+        <div class="streak">
+          <div class="flame">🔥</div>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:14px;">4-day scan streak</div>
+            <div class="xpbar"><i id="xpbar-fill"></i></div>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">120 / 200 XP to next milestone</div>
+          </div>
+        </div>
+
+        <h1 class="hd" style="font-size:17px;">Badges</h1>
+        <div class="badgegrid">
+          <div class="badge"><div class="bicon">🕵️</div><div class="bname">Sugar Detective</div></div>
+          <div class="badge"><div class="bicon">📖</div><div class="bname">Ingredient Reader</div></div>
+          <div class="badge locked"><div class="bicon">🛡️</div><div class="bname">Allergen Guard</div></div>
+          <div class="badge locked"><div class="bicon">🌱</div><div class="bname">Root Spotter</div></div>
+          <div class="badge locked"><div class="bicon">⭐</div><div class="bname">50 Scans</div></div>
+          <div class="badge locked"><div class="bicon">🏆</div><div class="bname">Label Master</div></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab" data-goto="s-scan"><span class="ti">◎</span>Scan</div>
+        <div class="tab" data-goto="s-profile"><span class="ti">☰</span>History</div>
+        <div class="tab active"><span class="ti">☺</span>Profile</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="notes">
+    <h2>What this shows</h2>
+    <p>A clickable pass at the core loop: diet/health setup → guided scan → a verdict card styled like an actual nutrition label → gamified progress. Real fonts, camera, and AI copy would replace the placeholders once wired to the backend.</p>
+    <div class="stepper" id="stepper"></div>
+  </div>
+</div>
+
+<script>
+  const screens = ["s-diet","s-health","s-ready","s-scan","s-result","s-profile"];
+  const stepper = document.getElementById("stepper");
+  screens.forEach(id => {
+    const b = document.createElement("button");
+    b.className = "navbtn" + (id === "s-diet" ? " on" : "");
+    b.textContent = id.replace("s-","").replace(/^\w/,c=>c.toUpperCase());
+    b.onclick = () => go(id);
+    b.dataset.id = id;
+    stepper.appendChild(b);
+  });
+
+  function go(id){
+    screens.forEach(s => document.getElementById(s).classList.toggle("active", s===id));
+    document.querySelectorAll(".navbtn").forEach(b => b.classList.toggle("on", b.dataset.id===id));
+  }
+
+  // diet selection
+  let selectedDiet = null;
+  document.querySelectorAll("#s-diet .opt").forEach(opt => {
+    opt.onclick = () => {
+      document.querySelectorAll("#s-diet .opt").forEach(o=>o.classList.remove("sel"));
+      opt.classList.add("sel");
+      selectedDiet = opt.dataset.diet;
+      document.getElementById("diet-next").disabled = false;
+    };
+  });
+  document.getElementById("diet-next").onclick = () => {
+    document.getElementById("meat-block").style.display = selectedDiet === "non_veg" ? "block" : "none";
+    go("s-health");
+  };
+
+  // chip toggles
+  document.querySelectorAll(".chip").forEach(c => {
+    c.onclick = () => c.classList.toggle("sel");
+  });
+
+  document.getElementById("health-next").onclick = () => go("s-ready");
+  document.getElementById("ready-next").onclick = () => go("s-scan");
+
+  document.querySelectorAll("[data-goto]").forEach(el => {
+    el.onclick = () => go(el.dataset.goto);
+  });
+
+  // scan -> agent narration -> result
+  const agentLines = [
+    "Reading the label…",
+    "Found 14 ingredients…",
+    "Checking against your vegetarian profile…",
+    "Scoring sugar &amp; additives…"
+  ];
+  document.getElementById("shutter").onclick = () => {
+    const line = document.getElementById("agentline");
+    let i = 0;
+    line.textContent = agentLines[0];
+    line.classList.add("show");
+    const interval = setInterval(() => {
+      i++;
+      if (i < agentLines.length) {
+        line.textContent = agentLines[i];
+      } else {
+        clearInterval(interval);
+        line.classList.remove("show");
+        go("s-result");
+        animateResult();
+      }
+    }, 650);
+  };
+
+  function animateResult(){
+    const numEl = document.getElementById("score-num");
+    const tagEl = document.getElementById("score-tag");
+    const card = numEl.closest(".scorecard");
+    let n = 0;
+    const target = 68;
+    const timer = setInterval(() => {
+      n += 4;
+      if (n >= target) { n = target; clearInterval(timer); tagEl.textContent = "Good, with one thing to watch"; card.style.borderColor = "var(--warning)"; numEl.style.color = "var(--warning)"; }
+      numEl.textContent = n;
+    }, 30);
+
+    const toast = document.getElementById("xp-toast");
+    setTimeout(() => toast.classList.add("show"), 900);
+    setTimeout(() => toast.classList.remove("show"), 3200);
+  }
+
+  document.getElementById("result-next").onclick = () => go("s-scan");
+
+  // profile xp bar animates on view
+  const profileTab = document.querySelectorAll('[data-goto="s-profile"]');
+  profileTab.forEach(t => t.addEventListener("click", () => {
+    setTimeout(()=>{ document.getElementById("xpbar-fill").style.width = "60%"; }, 100);
+  }));
+</script>
+</body>
+</html>
