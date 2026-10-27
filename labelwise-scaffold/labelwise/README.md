@@ -14,7 +14,7 @@ runs locally. A correct skeleton to build on, not a finished product.
 |---|---|---|
 | `docs/` | — | Architecture & product plan, diagrams |
 | `backend-node/` | Express, `pg`, JWT | API gateway: auth, profiles, scan orchestration, history, XP |
-| `ai-service-python/` | FastAPI, OpenCV, Tesseract, Anthropic SDK | OCR, ingredient classification, diet rules, scoring, AI explanation |
+| `ai-service-python/` | FastAPI, OpenCV, Tesseract, Ollama | OCR, ingredient classification, diet rules, scoring, AI explanation |
 | `mobile-app/` | React Native + Expo, TypeScript | Onboarding, login, camera scan, results, profile |
 
 ## Service map
@@ -45,7 +45,7 @@ ai-service-python/app/
 │   ├── ingredients.py          paren-aware split + KB classification
 │   ├── diet_rules.py           deterministic diet-fit + allergen checks
 │   └── scoring.py              sugar / additive / overall 0–100 scores
-└── agents/label_agent.py       Claude: explain_scan, answer_followup
+└── agents/label_agent.py       Local Llama: explain_scan, answer_followup
 
 mobile-app/
 ├── App.tsx                     StatusBar + RootNavigator
@@ -102,8 +102,8 @@ ingredient parsing, the scoring formulas, the Node↔Python contract.
 
 **Stubbed or needs your keys:** OCR accuracy (Tesseract works, but real glossy
 and curved labels need a cloud OCR fallback), the ingredient knowledge base
-(~35 seed entries — plug in Open Food Facts), the Claude calls (need
-`ANTHROPIC_API_KEY`), image storage (in-memory — wire to S3), gamification UI
+(~35 seed entries — plug in Open Food Facts), the local Llama calls (need
+Ollama and the configured model installed), image storage (in-memory — wire to S3), gamification UI
 (XP is written but never shown), and tests (there are none).
 
 The root README's [Known issues](../../README.md#known-issues-to-fix-before-shipping)

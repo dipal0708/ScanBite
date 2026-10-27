@@ -56,7 +56,7 @@ browser to click through the intended UX before running anything.
                                │  3. Classify     match against ingredient KB
                                │  4. Diet rules   deterministic, per-ingredient
                                │  5. Score        sugar / additives / overall
-                               │  6. Explain      Claude turns facts into prose
+                               │  6. Explain      Local Llama turns facts into prose
                                │
                         ◀──────┘  { scores, flags, summary, suggestions }
                         │
@@ -86,7 +86,7 @@ Install these before you start. Versions are minimums, not exact pins.
 | **Python** | 3.10+ | AI service |
 | **PostgreSQL** | 14+ (13+ required) | `gen_random_uuid()` became core in PG 13 |
 | **Tesseract OCR** | 5.x | `pytesseract` shells out to this binary |
-| **Anthropic API key** | — | Get one at [console.anthropic.com](https://console.anthropic.com) |
+| **Ollama** | latest | Runs the free local Llama explanation model |
 | **Expo Go** app | latest | Only if running on a physical phone |
 
 ### Installing Tesseract
@@ -114,6 +114,16 @@ On Windows, Tesseract installs to `C:\Program Files\Tesseract-OCR` and is
 point `pytesseract` at it directly — see [Troubleshooting](#troubleshooting).
 
 Verify with `tesseract --version`.
+
+Install Ollama on Windows:
+
+```bash
+winget install --id Ollama.Ollama
+ollama pull llama3.2
+```
+
+Verify that Ollama is available with `ollama list`. Ollama normally serves its
+local API at `http://localhost:11434`.
 
 ---
 
@@ -170,7 +180,14 @@ Install dependencies and create the env file:
 pip install -r requirements.txt && cp .env.example .env
 ```
 
-Open `.env` and set your real key — `ANTHROPIC_API_KEY=sk-ant-...`. Then run it:
+The default `.env` uses the local `llama3.2` model:
+
+```dotenv
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
+```
+
+Make sure Ollama is running, then start the Python service:
 
 ```bash
 uvicorn app.main:app --reload --port 8000
@@ -281,7 +298,8 @@ panel — the OCR heuristics key off the literal words "Ingredients:" and
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | Required. Without it, `/analyze` fails at the explanation step. |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama API address |
+| `OLLAMA_MODEL` | `llama3.2` | Model installed with `ollama pull` |
 
 **`mobile-app/.env`**
 
@@ -345,10 +363,11 @@ older. Upgrade to 13+, or enable the extension:
 psql $DATABASE_URL -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
 ```
 
-**Scan returns 500, everything else works** — almost always a missing or invalid
-`ANTHROPIC_API_KEY`. The AI explanation step currently has no fallback, so one
-failed model call discards otherwise-valid OCR and scoring results. Check the
-Python service logs.
+**Scan returns 500, everything else works** — verify Ollama is running and the
+configured model is installed with `ollama list`. Run `ollama pull llama3.2` if
+needed. The AI explanation step currently has no fallback, so one failed local
+model call discards otherwise-valid OCR and scoring results. Check the Python
+service logs.
 
 **App shows "Network Error" on a physical phone** — `EXPO_PUBLIC_API_URL` is
 still `localhost`, your firewall is blocking port 4000, or the phone is on a
@@ -366,7 +385,7 @@ This is a **milestone-1 scaffold** — a correct skeleton, not a finished produc
 
 **Working end to end:** JWT auth, the Postgres schema, the diet-fit rule engine
 (all five diet types plus meat sub-preferences), paren-aware ingredient parsing,
-the nutrition scoring formulas, the Node↔Python contract, and the Claude
+the nutrition scoring formulas, the Node↔Python contract, and the local Llama
 explanation layer.
 
 **Stubbed or needs tuning:**
