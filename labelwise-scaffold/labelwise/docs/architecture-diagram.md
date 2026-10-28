@@ -27,7 +27,7 @@ flowchart TB
         ING["ingredients.py<br/>parse + classify"]
         RULES["diet_rules.py<br/><b>deterministic</b>"]
         SCORE["scoring.py<br/><b>deterministic</b>"]
-        AGENT["label_agent.py<br/>Claude explanation"]
+        AGENT["label_agent.py<br/>Ollama explanation"]
     end
 
     subgraph data["Data tier"]
@@ -36,7 +36,7 @@ flowchart TB
         S3[("S3<br/>label images")]
     end
 
-    ANTHROPIC{{"Anthropic API"}}
+    OLLAMA{{"Ollama<br/>local model server"}}
 
     RN -->|"HTTPS · JSON · multipart"| EX
     EX --> JWT
@@ -44,7 +44,7 @@ flowchart TB
     AUTH & PROF & SCAN <--> PG
     SCAN -->|"internal HTTP<br/>images + profile"| OCR
     OCR --> ING --> RULES --> SCORE --> AGENT
-    AGENT <-->|"structured facts only"| ANTHROPIC
+    AGENT <-->|"structured facts only"| OLLAMA
 
     SCAN -.->|"planned"| REDIS
     SCAN -.->|"planned"| S3
@@ -71,7 +71,7 @@ sequenceDiagram
     participant API as Node :4000
     participant PG as Postgres
     participant AI as Python :8000
-    participant C as Claude
+    participant C as Ollama
 
     U->>App: taps shutter
     App->>App: takePictureAsync(quality 0.8)
@@ -139,7 +139,7 @@ flowchart LR
     end
 
     subgraph llm["LLM — explanation only"]
-        EXP["explain_scan()<br/>Claude"]
+        EXP["explain_scan()<br/>Ollama"]
     end
 
     SL --> EXP
@@ -269,7 +269,7 @@ flowchart LR
     API --> Q[["BullMQ<br/>on Redis"]]
     Q --> W["Worker"]
     W --> AI["Python AI service"]
-    AI --> C{{"Claude<br/>streaming"}}
+    AI --> C{{"Local Ollama model<br/>streaming"}}
     C -.->|"tokens"| W
     W --> PG[("Postgres")]
     W -.->|"SSE progress<br/>'found 14 ingredients…'"| App

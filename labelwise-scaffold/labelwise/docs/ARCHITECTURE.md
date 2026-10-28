@@ -45,7 +45,7 @@ This profile is the single source of truth the AI agent conditions its suggestio
 ┌───────────▼──────────────┐
 │  Python AI Service        │  OCR pipeline, ingredient NLP parsing,
 │  (FastAPI)                │  ingredient classification & scoring,
-│                            │  LLM agent (Claude) for explanations,
+│                            │  local Ollama model for explanations,
 │                            │  alternative-product suggestions
 └───────────┬──────────────┘
             │
@@ -61,7 +61,7 @@ This profile is the single source of truth the AI agent conditions its suggestio
    └────────────────────┘
 ```
 
-**Why split Node.js and Python** rather than one stack: Node is a good fit for the API gateway, auth, real-time/session concerns, and mobile-facing REST contract. Python owns OCR/ML/LLM-agent orchestration where the ecosystem (Tesseract/PaddleOCR, spaCy, pandas, the Anthropic Python SDK) is strongest. The Node service never touches raw images or model calls directly — it proxies to the Python service, which keeps concerns cleanly separated and lets you scale/deploy them independently (the AI service is the one that needs GPU/CPU-heavy autoscaling; the gateway doesn't).
+**Why split Node.js and Python** rather than one stack: Node is a good fit for the API gateway, auth, real-time/session concerns, and mobile-facing REST contract. Python owns OCR/ML/LLM-agent orchestration where the ecosystem (Tesseract/PaddleOCR, spaCy, pandas, and local model tooling such as Ollama) is strongest. The Node service never touches raw images or model calls directly — it proxies to the Python service, which keeps concerns cleanly separated and lets you scale/deploy them independently (the AI service is the one that needs GPU/CPU-heavy autoscaling; the gateway doesn't).
 
 ## 4. Scan → analysis pipeline (the core feature)
 
@@ -88,7 +88,7 @@ This profile is the single source of truth the AI agent conditions its suggestio
    - Non-vegetarian with sub-prefs: flag only the excluded categories the user selected (e.g., user allows chicken/white meat but excludes red meat/pork → flag beef, pork, lamb ingredients specifically).
    - Each rule set is a versioned JSON ruleset in Postgres so it can be updated without a redeploy, and every flag cites which specific ingredient triggered it.
 7. **AI agent explanation layer**:
-   - Once the deterministic parsing + scoring + diet-fit steps are done, an LLM agent (Claude, via the Anthropic API) is given the *structured* results (not raw OCR text) and generates: a plain-language summary, a "what this means for you" paragraph personalized to the user's health flags, and 2–3 concrete suggestions (e.g., "swap for a lower-sodium version," "fine occasionally, not daily given your sugar goal").
+   - Once the deterministic parsing + scoring + diet-fit steps are done, a local Ollama model is given the *structured* results (not raw OCR text) and generates: a plain-language summary, a "what this means for you" paragraph personalized to the user's health flags, and 2–3 concrete suggestions (e.g., "swap for a lower-sodium version," "fine occasionally, not daily given your sugar goal").
    - The agent can optionally use tools: a product-alternatives lookup (search a packaged-goods database or the web for a lower-sugar/allergen-safe alternative in the same category) and a "explain this ingredient" lookup for follow-up questions.
    - Keeping scoring deterministic and only using the LLM for *explanation and suggestions* avoids the failure mode of an LLM inventing or missing a health-relevant classification — critical for a health-adjacent app.
 8. **Response** streamed back to the app over WebSocket/SSE so the "AI agent walking you through the label" feels conversational and live rather than a spinner-then-dump.
@@ -127,7 +127,7 @@ An interactive HTML/React prototype of this flow is provided separately so you c
 | Mobile | React Native + Expo, TypeScript, React Navigation, Reanimated/Lottie for the game-like motion | One codebase for iOS/Android per your preference; Expo speeds up camera/permissions handling |
 | API Gateway | Node.js, Express or Fastify, TypeScript, Prisma ORM | Familiar, fast to build, strong ecosystem for auth/session/rate-limiting |
 | Auth | JWT access + refresh tokens, bcrypt/argon2 password hashing, optional OAuth (Google/Apple sign-in — expected on mobile) | Standard, secure, App Store/Play Store friendly |
-| AI/OCR service | Python, FastAPI, OpenCV, Tesseract (+ cloud OCR fallback), spaCy for NLP normalization, Anthropic Python SDK for the agent | Best ecosystem for CV/NLP/agent orchestration |
+| AI/OCR service | Python, FastAPI, OpenCV, Tesseract (+ cloud OCR fallback), Ollama for local agent inference | Best ecosystem for CV/NLP/agent orchestration |
 | Data | Postgres (source of truth), Redis (cache, session, job queue via BullMQ), S3-compatible storage (label images) | Standard, scalable, cheap to start |
 | Ingredient KB | Curated table seeded from Open Food Facts (open dataset) + manual curation for E-numbers/diet tags | Open Food Facts gives a strong free starting dataset of ingredients/products |
 | Infra | Docker Compose for local dev; Node service and Python service as separate deployable containers (e.g., on Fly.io/Render/AWS ECS) | Matches the two-service split; independent scaling |
@@ -136,7 +136,7 @@ An interactive HTML/React prototype of this flow is provided separately so you c
 
 1. **M1 — Skeleton**: auth (signup/login), profile creation flow, empty scan screen, Node ↔ Python service talking to each other with a stubbed "fake OCR" response. *(This is what the code scaffold gives you.)*
 2. **M2 — Real OCR + parsing**: wire real Tesseract/cloud OCR, build the ingredient KB (seed from Open Food Facts), implement the deterministic diet-fit rule engine and scoring.
-3. **M3 — AI agent layer**: connect the Anthropic API for explanations/suggestions, streaming responses to the app.
+3. **M3 — AI agent layer**: connect a local LLM for explanations/suggestions, then add streaming responses to the app.
 4. **M4 — Gamification & polish**: XP/streaks/badges, the animated scan/reveal sequences, history and comparison screens.
 5. **M5 — Hardening**: accessibility pass, offline/poor-scan handling, App Store/Play Store submission prep, privacy review (health data is sensitive — see below).
 
